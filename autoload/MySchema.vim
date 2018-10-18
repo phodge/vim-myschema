@@ -7,6 +7,20 @@ if ! exists('g:MySchema_default_host')
   let g:MySchema_default_host = 'localhost'
 endif
 
+function! <SID>GetConnectInfo() " {{{
+    let l:engine = <SID>GetGlobalEngine()
+
+    let l:info = {
+          \ 'engine': l:engine,
+          \ }
+
+    let l:info.host = <SID>GetGlobalHost()
+    let l:info.user = <SID>GetGlobalUser()
+    let l:info.pass = <SID>GetGlobalPass()
+
+    return l:info
+endfun " }}}
+
 function! MySchema#GetSchema(table_name)
   " do we know what mysql server to use?
   call inputsave()

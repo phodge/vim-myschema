@@ -26,29 +26,26 @@ function! MySchema#GetSchema(table_name)
   call inputsave()
   try
     " collect credentials if we don't have them yet
-    let l:engine = <SID>GetGlobalEngine()
-    let l:host = <SID>GetGlobalHost()
-    let l:user = <SID>GetGlobalUser()
-    let l:pass = <SID>GetGlobalPass()
+    let l:connect = <SID>GetConnectInfo()
 
     if !strlen(a:table_name)
       " if no table name was specified, we want to ask the user which database
       " to show tables from
-      let l:db = <SID>PromptDB(l:engine, l:host, l:user, l:pass, 'Show tables from which database?')
+      let l:db = <SID>PromptDB(a:connect, 'Show tables from which database?')
       if strlen(l:db)
-        call <SID>ShowTables(l:engine, l:host, l:user, l:pass, l:db)
+        call <SID>ShowTables(a:connect, l:db)
       endif
     elseif exists('b:MySchema_database') && strlen(b:MySchema_database)
       " if this window was opened by MySchema#GetSchema(), we know what
       " database to look in automatically
-      call <SID>ShowTableFromDB(l:engine, l:host, l:user, l:pass, b:MySchema_database, a:table_name)
+      call <SID>ShowTableFromDB(l:connect, b:MySchema_database, a:table_name)
     elseif exists('g:MySchema_db') && g:MySchema_db
       " if the user has previously specified that we are in single-database
       " mode, show the table from that db
-      call <SID>ShowTableFromDB(l:engine, l:host, l:user, l:pass, g:MySchema_db, a:table_name)
+      call <SID>ShowTableFromDB(l:connect, g:MySchema_db, a:table_name)
     else
       " scan all databases to see which one has this table
-      let l:db_list = <SID>FindDatabasesWithTable(l:engine, l:host, l:user, l:pass, a:table_name)
+      let l:db_list = <SID>FindDatabasesWithTable(l:connect, a:table_name)
 
       " if there are no databases, show an error
       if ! len(l:db_list)
@@ -58,12 +55,12 @@ function! MySchema#GetSchema(table_name)
       elseif len(l:db_list) == 1
         " if there is only one database that contains a table with this name,
         " show its schema
-        call <SID>ShowTableFromDB(l:engine, l:host, l:user, l:pass, l:db_list[0], a:table_name)
+        call <SID>ShowTableFromDB(l:connect, l:db_list[0], a:table_name)
       else
         " show the user a menu of databases to choose from
         let l:db = <SID>ChooseDatabase(printf('Show table %s from which database?', a:table_name), l:db_list)
         if strlen(l:db)
-          call <SID>ShowTableFromDB(l:engine, l:host, l:user, l:pass, l:db, a:table_name)
+          call <SID>ShowTableFromDB(l:connect, l:db, a:table_name)
         endif
       endif
     endif
@@ -129,10 +126,10 @@ function! <SID>GetGlobalPass()
   return g:MySchema_pass
 endfunction
 
-function! <SID>PromptDB(engine, host, user, pass, prompt)
+function! <SID>PromptDB(connect, prompt)
   " generate a list of all databases
-  if a:engine == 'mysql'
-    let l:mysql = <SID>GetMysqlCMD(a:host, a:user, a:pass)
+  if a:connect.engine == 'mysql'
+    let l:mysql = <SID>GetMysqlCMD(a:connect)
     let l:db_string = system(l:mysql.' --skip-column-names', 'show databases')
     let l:db_string = <SID>RemoveWarning(l:db_string)
     if v:shell_error
@@ -148,7 +145,7 @@ function! <SID>PromptDB(engine, host, user, pass, prompt)
     let l:db_list = split(l:db_string)
   else
     " postgresql
-    let l:db_list = <SID>GetPsqlDatabases(a:host, a:user, a:pass)
+    let l:db_list = <SID>GetPsqlDatabases(a:connect)
   endif
 
   if ! len(l:db_list)
@@ -191,31 +188,38 @@ function! <SID>ChooseDatabase(prompt, db_list)
   return a:db_list[l:idx]
 endfunction
 
-function! <SID>GetMysqlCMD(host, user, pass)
-  return printf('mysql -h%s -u%s -p%s', shellescape(a:host), shellescape(a:user), shellescape(a:pass))
+function! <SID>GetMysqlCMD(connect)
+  return printf('mysql -h%s -u%s -p%s',
+        \ shellescape(a:connect.host),
+        \ shellescape(a:connect.user),
+        \ shellescape(a:connect.pass))
 endfunction
 
-function! <SID>GetPsqlCMD(host, user, pass, dbname, compact)
-  let l:cmd = printf('psql -h %s -U %s %s', shellescape(a:host), shellescape(a:user), shellescape(a:dbname))
+function! <SID>GetPsqlCMD(connect, dbname, compact)
+  let l:cmd = printf('psql -h %s -U %s %s',
+        \ shellescape(a:connect.host),
+        \ shellescape(a:connect.user),
+        \ shellescape(a:dbname))
   if a:compact
     let l:cmd .= ' --tuples-only'
   endif
-  if len(a:pass)
-    let l:cmd .= '-p '.shellescape(a:pass)
+  if len(a:connect.pass)
+    let l:cmd .= '-p '.shellescape(a:connect.pass)
   else
     let l:cmd .= ' --no-password'
   endif
   return l:cmd
 endfunction
 
-function! <SID>GetPsqlDatabases(host, user, pass)
-  let l:cmd = <SID>GetPsqlCMD(a:host, a:user, a:pass, 'postgres', 1)
+function! <SID>GetPsqlDatabases(connect)
+  let l:cmd = <SID>GetPsqlCMD(a:connect, 'postgres', 1)
   let l:query  = "SELECT datname FROM pg_database"
   let l:query .= " WHERE datistemplate = 'f' AND datname != 'postgres'"
   let l:output = system(l:cmd, l:query)
   if v:shell_error
+    let l:host = a:connect.host
     echohl Error
-    echo "Could not get database list from ".a:host
+    echo "Could not get database list from ".l:host
     echohl None
     echo l:output
     return ['postgres']
@@ -223,15 +227,15 @@ function! <SID>GetPsqlDatabases(host, user, pass)
   return split(l:output)
 endfunction
 
-function! <SID>ShowTables(engine, host, user, pass, database)
+function! <SID>ShowTables(connect, database)
   " output a list of all tables
-  if a:engine == 'mysql'
-    let l:mysql = <SID>GetMysqlCMD(a:host, a:user, a:pass)
+  if a:connect.engine == 'mysql'
+    let l:mysql = <SID>GetMysqlCMD(a:connect)
     let l:table_string = system(l:mysql.' -t '.a:database, 'show tables')
     let l:table_string = <SID>RemoveWarning(l:table_string)
   else
     " postgresql
-    let l:psql = <SID>GetPsqlCMD(a:host, a:user, a:pass, a:database, 0)
+    let l:psql = <SID>GetPsqlCMD(a:connect, a:database, 0)
     let l:table_string = system(l:psql, '\d+')
   endif
   if v:shell_error
@@ -251,9 +255,9 @@ function! <SID>ShowTables(engine, host, user, pass, database)
   endif
 endfunction
 
-function! <SID>ShowTableFromDB(engine, host, user, pass, database, table_name)
+function! <SID>ShowTableFromDB(connect, database, table_name)
   let l:queries = []
-  if a:engine == 'mysql'
+  if a:connect.engine == 'mysql'
     call add(l:queries, [ printf("DESC %s.%s", a:database, a:table_name), '-t', 0 ])
     call add(l:queries, [ printf("SHOW CREATE TABLE %s.%s\\G", a:database, a:table_name), '-N', 2])
     call add(l:queries, [ printf("SHOW KEYS FROM %s.%s", a:database, a:table_name), '-t', 0])
@@ -264,13 +268,13 @@ function! <SID>ShowTableFromDB(engine, host, user, pass, database, table_name)
   " output a list of all tables
   let l:results = []
   for [ l:query, l:options, l:headsize ] in l:queries
-    if a:engine == 'mysql'
-      let l:cmd = <SID>GetMysqlCMD(a:host, a:user, a:pass)
+    if a:connect.engine == 'mysql'
+      let l:cmd = <SID>GetMysqlCMD(a:connect)
       let l:output = system(l:cmd.' '.l:options, l:query)
       let l:output = <SID>RemoveWarning(l:output)
     else
       " postgresql
-      let l:cmd = <SID>GetPsqlCMD(a:host, a:user, a:pass, a:database, 0)
+      let l:cmd = <SID>GetPsqlCMD(a:connect, a:database, 0)
       let l:output = system(l:cmd.' '.l:options, l:query)
     endif
     let l:output = substitute(l:output, '\\n', '\n', 'g')
@@ -296,9 +300,9 @@ function! <SID>RemoveWarning(output)
   return substitute(a:output, "Warning: Using a password on the command line interface can be insecure\.[\r\n]*", "", "g")
 endfunction
 
-function! <SID>FindDatabasesWithTable(engine, host, user, pass, table_name)
-  if a:engine == 'mysql'
-    let l:mysql  = <SID>GetMysqlCMD(a:host, a:user, a:pass)
+function! <SID>FindDatabasesWithTable(connect, table_name)
+  if a:connect.engine == 'mysql'
+    let l:mysql  = <SID>GetMysqlCMD(a:connect)
     let l:query  = printf('SELECT TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_NAME = "%s"', a:table_name)
     let l:output = system(l:mysql.' --skip-column-names', l:query)
     let l:output = <SID>RemoveWarning(l:output)
@@ -316,8 +320,8 @@ function! <SID>FindDatabasesWithTable(engine, host, user, pass, table_name)
 
   " postgresql
   let l:matches = []
-  for l:dbname in <SID>GetPsqlDatabases(a:host, a:user, a:pass)
-    let l:psql  = <SID>GetPsqlCMD(a:host, a:user, a:pass, l:dbname, 1)
+  for l:dbname in <SID>GetPsqlDatabases(a:connect)
+    let l:psql  = <SID>GetPsqlCMD(a:connect, l:dbname, 1)
     let l:query  = "SELECT COUNT(*) FROM information_schema.tables"
     let l:query .= " WHERE table_schema NOT IN('pg_catalog', 'information_schema')"
     let l:query .= " AND table_name = '".a:table_name."'"
@@ -388,16 +392,13 @@ function! <SID>RunSQL()
   let l:original_buffer = bufnr("")
 
   " collect credentials if we don't have them yet
-  let l:engine = <SID>GetGlobalEngine()
-  let l:host = <SID>GetGlobalHost()
-  let l:user = <SID>GetGlobalUser()
-  let l:pass = <SID>GetGlobalPass()
+  let l:connect = <SID>GetConnectInfo()
 
   " ask the user which database to run again?
   if exists('b:MySchema_database') && strlen(b:MySchema_database)
     let l:db = b:MySchema_database
   else
-    let l:db = <SID>PromptDB(l:engine, l:host, l:user, l:pass, 'Run SQL again which database?')
+    let l:db = <SID>PromptDB(a:connect, 'Run SQL again which database?')
     if ! strlen(l:db)
       echohl Error
       echo 'You must select a database to continue'
@@ -420,12 +421,12 @@ function! <SID>RunSQL()
   endif
 
   " run the SQL queries now using the credentials provided
-  if l:engine == 'mysql'
-    let l:cmd = <SID>GetMysqlCMD(l:host, l:user, l:pass).' -t '.shellescape(l:db)
+  if l:connect.engine == 'mysql'
+    let l:cmd = <SID>GetMysqlCMD(l:connect).' -t '.shellescape(l:db)
     let l:output = system(l:cmd.' < '.l:source)
     let l:output = <SID>RemoveWarning(l:output)
   else
-    let l:cmd = <SID>GetPsqlCMD(l:host, l:user, l:pass, l:db, 0)
+    let l:cmd = <SID>GetPsqlCMD(l:connect, l:db, 0)
     let l:output = system(l:cmd.' < '.l:source)
   endif
   if v:shell_error

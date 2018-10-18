@@ -14,9 +14,14 @@ function! <SID>GetConnectInfo() " {{{
           \ 'engine': l:engine,
           \ }
 
-    let l:info.host = <SID>GetGlobalHost()
-    let l:info.user = <SID>GetGlobalUser()
-    let l:info.pass = <SID>GetGlobalPass()
+    if l:engine == 'mysql' && exists('g:MySchema_authorized_mysql_command')
+      " if there is an authorized command, we don't need to prompt for credentials
+      let l:info.command = g:MySchema_authorized_mysql_command
+    else
+      let l:info.host = <SID>GetGlobalHost()
+      let l:info.user = <SID>GetGlobalUser()
+      let l:info.pass = <SID>GetGlobalPass()
+    endif
 
     return l:info
 endfun " }}}
@@ -189,6 +194,11 @@ function! <SID>ChooseDatabase(prompt, db_list)
 endfunction
 
 function! <SID>GetMysqlCMD(connect)
+  let l:command = get(a:connect, 'command', '')
+  if strlen(l:command)
+    return l:command
+  endif
+
   return printf('mysql -h%s -u%s -p%s',
         \ shellescape(a:connect.host),
         \ shellescape(a:connect.user),
@@ -217,7 +227,7 @@ function! <SID>GetPsqlDatabases(connect)
   let l:query .= " WHERE datistemplate = 'f' AND datname != 'postgres'"
   let l:output = system(l:cmd, l:query)
   if v:shell_error
-    let l:host = a:connect.host
+    let l:host = get(a:connect, 'command', get(a:connect, 'host', ''))
     echohl Error
     echo "Could not get database list from ".l:host
     echohl None

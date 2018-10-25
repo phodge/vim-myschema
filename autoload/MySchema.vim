@@ -408,7 +408,7 @@ function! <SID>RunSQL()
   if exists('b:MySchema_database') && strlen(b:MySchema_database)
     let l:db = b:MySchema_database
   else
-    let l:db = <SID>PromptDB(a:connect, 'Run SQL again which database?')
+    let l:db = <SID>PromptDB(l:connect, 'Run SQL again which database?')
     if ! strlen(l:db)
       echohl Error
       echo 'You must select a database to continue'

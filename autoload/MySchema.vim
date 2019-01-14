@@ -36,9 +36,9 @@ function! MySchema#GetSchema(table_name)
     if !strlen(a:table_name)
       " if no table name was specified, we want to ask the user which database
       " to show tables from
-      let l:db = <SID>PromptDB(a:connect, 'Show tables from which database?')
+      let l:db = <SID>PromptDB(l:connect, 'Show tables from which database?')
       if strlen(l:db)
-        call <SID>ShowTables(a:connect, l:db)
+        call <SID>ShowTables(l:connect, l:db)
       endif
     elseif exists('b:MySchema_database') && strlen(b:MySchema_database)
       " if this window was opened by MySchema#GetSchema(), we know what

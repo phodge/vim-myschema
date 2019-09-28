@@ -309,7 +309,7 @@ function! <SID>ShowTableFromDB(connect, database, table_name)
 endfunction
 
 function! <SID>RemoveWarning(output)
-  return substitute(a:output, "Warning: Using a password on the command line interface can be insecure\.[\r\n]*", "", "g")
+  return substitute(a:output, '\%(Warning:\|mysql: \[Warning\]\) Using a password on the command line interface can be insecure\.[\r\n]*', "", "g")
 endfunction
 
 function! <SID>FindDatabasesWithTable(connect, table_name)

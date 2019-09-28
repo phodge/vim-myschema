@@ -4,7 +4,9 @@ if ! exists('g:MySchema_default_user')
   let g:MySchema_default_user = 'root'
 endif
 if ! exists('g:MySchema_default_host')
-  let g:MySchema_default_host = 'localhost'
+  " these days 127.0.0.1 is a more convenient default host because I'm usually running mysql in a
+  " container with an exposed port
+  let g:MySchema_default_host = '127.0.0.1'
 endif
 
 function! <SID>GetConnectInfo() " {{{

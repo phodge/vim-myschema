@@ -8,6 +8,12 @@ if ! exists('g:MySchema_default_host')
   " container with an exposed port
   let g:MySchema_default_host = '127.0.0.1'
 endif
+if ! exists('g:MySchema_default_mysql_port')
+  let g:MySchema_default_mysql_port = '3306'
+endif
+if ! exists('g:MySchema_default_postgres_port')
+  let g:MySchema_default_postgres_port = '5432'
+endif
 
 function! <SID>GetConnectInfo() " {{{
     let l:engine = <SID>GetGlobalEngine()
@@ -21,6 +27,7 @@ function! <SID>GetConnectInfo() " {{{
       let l:info.command = g:MySchema_authorized_mysql_command
     else
       let l:info.host = <SID>GetGlobalHost()
+      let l:info.port = l:engine == 'mysql' ? <SID>GetGlobalMysqlPort() : <SID>GetGlobalPostgresPort()
       let l:info.user = <SID>GetGlobalUser()
       let l:info.pass = <SID>GetGlobalPass()
     endif
@@ -86,11 +93,17 @@ function! MySchema#ResetOptions(preserve)
     if exists('g:MySchema_host') && strlen(g:MySchema_host)
       let g:MySchema_default_host = g:MySchema_host
     endif
+    if exists('g:MySchema_mysql_port') && strlen(g:MySchema_mysql_port)
+      let g:MySchema_default_mysql_port = g:MySchema_mysql_port
+    endif
+    if exists('g:MySchema_postgres_port') && strlen(g:MySchema_postgres_port)
+      let g:MySchema_default_postgres_port = g:MySchema_postgres_port
+    endif
     if exists('g:MySchema_user') && strlen(g:MySchema_user)
       let g:MySchema_default_user = g:MySchema_user
     endif
   endif
-  unlet! g:MySchema_engine g:MySchema_host g:MySchema_user g:MySchema_pass g:MySchema_db
+  unlet! g:MySchema_engine g:MySchema_host g:MySchema_mysql_port g:MySchema_postgres_port g:MySchema_user g:MySchema_pass g:MySchema_db
 endfunction
 
 function! <SID>GetGlobalEngine()
@@ -113,6 +126,24 @@ function! <SID>GetGlobalHost()
     echohl None
   endif
   return g:MySchema_host
+endfunction
+
+function! <SID>GetGlobalMysqlPort()
+  if !exists('g:MySchema_mysql_port') || !strlen(g:MySchema_mysql_port)
+    echohl Question
+    let g:MySchema_mysql_port = input('mysql port: ', g:MySchema_default_mysql_port)
+    echohl None
+  endif
+  return g:MySchema_mysql_port
+endfunction
+
+function! <SID>GetGlobalPostgresPort()
+  if !exists('g:MySchema_postgres_port') || !strlen(g:MySchema_postgres_port)
+    echohl Question
+    let g:MySchema_postgres_port = input('postgres port: ', g:MySchema_default_postgres_port)
+    echohl None
+  endif
+  return g:MySchema_postgres_port
 endfunction
 
 function! <SID>GetGlobalUser()
@@ -201,13 +232,15 @@ function! <SID>GetMysqlCMD(connect)
     return l:command
   endif
 
-  return printf('mysql -h%s -u%s -p%s',
+  return printf('mysql -h%s -P%s -u%s -p%s',
         \ shellescape(a:connect.host),
+        \ shellescape(a:connect.port),
         \ shellescape(a:connect.user),
         \ shellescape(a:connect.pass))
 endfunction
 
 function! <SID>GetPsqlCMD(connect, dbname, compact)
+  " TODO: this is missing the port number
   let l:cmd = printf('psql -h %s -U %s %s',
         \ shellescape(a:connect.host),
         \ shellescape(a:connect.user),
@@ -457,7 +490,7 @@ function! <SID>RunSQL()
 
     " remember what our original buffer was
     let b:MySchema_results_for = l:original_buffer
-    
+
     " set up mapping for this window as well
     call MySchema#SQLWindow()
 

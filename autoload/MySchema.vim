@@ -86,7 +86,6 @@ function! MySchema#GetSchema(table_name)
 endfunction
 
 " if g:MySchema_db is set, then we are operating in 'single-db' mode
-" 
 
 function! MySchema#ResetOptions(preserve)
   if a:preserve

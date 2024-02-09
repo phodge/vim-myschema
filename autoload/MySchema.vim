@@ -248,7 +248,7 @@ function! <SID>GetPsqlCMD(connect, dbname, compact)
     let l:cmd .= ' --tuples-only'
   endif
   if len(a:connect.pass)
-    let l:cmd .= '-p '.shellescape(a:connect.pass)
+    let l:cmd = 'PGPASSWORD=' . shellescape(a:connect.pass) . ' ' . l:cmd
   else
     let l:cmd .= ' --no-password'
   endif

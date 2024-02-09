@@ -26,9 +26,9 @@ function! <SID>GetConnectInfo() " {{{
       " if there is an authorized command, we don't need to prompt for credentials
       let l:info.command = g:MySchema_authorized_mysql_command
     else
-      let l:info.host = <SID>GetGlobalHost()
+      let l:info.host = <SID>GetGlobalHost(l:engine)
       let l:info.port = l:engine == 'mysql' ? <SID>GetGlobalMysqlPort() : <SID>GetGlobalPostgresPort()
-      let l:info.user = <SID>GetGlobalUser()
+      let l:info.user = <SID>GetGlobalUser(l:engine)
       let l:info.pass = <SID>GetGlobalPass()
     endif
 
@@ -118,10 +118,10 @@ function! <SID>GetGlobalEngine()
   return g:MySchema_engine
 endfunction
 
-function! <SID>GetGlobalHost()
+function! <SID>GetGlobalHost(engine)
   if !exists('g:MySchema_host') || !strlen(g:MySchema_host)
     echohl Question
-    let g:MySchema_host = input('mysql host: ', g:MySchema_default_host)
+    let g:MySchema_host = input(a:engine . ' host: ', g:MySchema_default_host)
     echohl None
   endif
   return g:MySchema_host
@@ -145,10 +145,10 @@ function! <SID>GetGlobalPostgresPort()
   return g:MySchema_postgres_port
 endfunction
 
-function! <SID>GetGlobalUser()
+function! <SID>GetGlobalUser(engine)
   if !exists('g:MySchema_user') || !strlen(g:MySchema_user)
     echohl Question
-    let g:MySchema_user = input('mysql user: ', g:MySchema_default_user)
+    let g:MySchema_user = input(a:engine . ' user: ', g:MySchema_default_user)
     echohl None
   endif
   return g:MySchema_user

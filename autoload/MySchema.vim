@@ -239,9 +239,9 @@ function! <SID>GetMysqlCMD(connect)
 endfunction
 
 function! <SID>GetPsqlCMD(connect, dbname, compact)
-  " TODO: this is missing the port number
-  let l:cmd = printf('psql -h %s -U %s %s',
+  let l:cmd = printf('psql -h %s --port=%s -U %s %s',
         \ shellescape(a:connect.host),
+        \ shellescape(a:connect.port),
         \ shellescape(a:connect.user),
         \ shellescape(a:dbname))
   if a:compact

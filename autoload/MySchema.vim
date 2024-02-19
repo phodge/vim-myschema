@@ -239,7 +239,7 @@ function! <SID>GetMysqlCMD(connect)
 endfunction
 
 function! <SID>GetPsqlCMD(connect, dbname, compact)
-  let l:cmd = printf('psql -h %s --port=%s -U %s %s',
+  let l:cmd = printf('psql --host=%s --port=%s --username=%s %s',
         \ shellescape(a:connect.host),
         \ shellescape(a:connect.port),
         \ shellescape(a:connect.user),

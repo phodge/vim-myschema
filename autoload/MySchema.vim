@@ -258,7 +258,9 @@ endfunction
 function! <SID>GetPsqlDatabases(connect)
   let l:cmd = <SID>GetPsqlCMD(a:connect, 'postgres', 1)
   let l:query  = "SELECT datname FROM pg_database"
-  let l:query .= " WHERE datistemplate = 'f' AND datname != 'postgres'"
+  let l:query .= " WHERE datistemplate = 'f'"
+  let l:query .= " AND datname NOT IN('postgres', 'rdsadmin')"
+  let l:query .= " ORDER BY datname"
   let l:output = system(l:cmd, l:query)
   if v:shell_error
     let l:host = get(a:connect, 'command', get(a:connect, 'host', ''))

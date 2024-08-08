@@ -518,3 +518,32 @@ function! <SID>RunSQL()
   endif
 
 endfunction
+
+" XXX: first step
+" - get rid of g:MySchema_xxx variables (although not *_default_*) and replace
+"   with b: variants which is just a single dict
+" - this helps us get ready for DefineServer to populate the b: variables
+
+" XXX: new functionality
+" - keep a global list of "known" databases to connect to
+" - can define some connection params upfront
+" - can define a callback which produces the params on-demand
+" - NO LONGER use g:MySchema_* variables for storing connection info
+"   BUT if g:MySchema_default_XXX variables do get defined then we might
+"   present them as an option for connecting to
+" - ALSO allow defining a server on-the-fly and saving to $HOME somewhere so
+"   that we can reuse it later
+" - when asking which server to use, should suggest servers already in use in
+"   other buffers
+" - See also DOTFILES016
+let g:myschema_server_names = {}
+fun! MySchema#DefineServer(name, opts)
+  let l:Callback = get(a:opts, 'Callback')
+  if l:Callback isnot v:null
+    " TODO: define via callback
+    let g:myschema_server_names[a:name] = {"callback": l:Callback}
+  else
+    " TODO: direct params
+    let g:myschema_server_names[a:name] = {"params": "TODO"}
+  endif
+endfun

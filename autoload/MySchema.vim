@@ -53,10 +53,6 @@ function! MySchema#GetSchema(table_name)
       " if this window was opened by MySchema#GetSchema(), we know what
       " database to look in automatically
       call <SID>ShowTableFromDB(l:connect, b:MySchema_database, a:table_name)
-    elseif exists('g:MySchema_db') && g:MySchema_db
-      " if the user has previously specified that we are in single-database
-      " mode, show the table from that db
-      call <SID>ShowTableFromDB(l:connect, g:MySchema_db, a:table_name)
     else
       " scan all databases to see which one has this table
       let l:db_list = <SID>FindDatabasesWithTable(l:connect, a:table_name)
@@ -85,8 +81,6 @@ function! MySchema#GetSchema(table_name)
 
 endfunction
 
-" if g:MySchema_db is set, then we are operating in 'single-db' mode
-
 function! MySchema#ResetOptions(preserve)
   if a:preserve
     if exists('g:MySchema_host') && strlen(g:MySchema_host)
@@ -102,7 +96,7 @@ function! MySchema#ResetOptions(preserve)
       let g:MySchema_default_user = g:MySchema_user
     endif
   endif
-  unlet! g:MySchema_engine g:MySchema_host g:MySchema_mysql_port g:MySchema_postgres_port g:MySchema_user g:MySchema_pass g:MySchema_db
+  unlet! g:MySchema_engine g:MySchema_host g:MySchema_mysql_port g:MySchema_postgres_port g:MySchema_user g:MySchema_pass
 endfunction
 
 function! <SID>GetGlobalEngine()

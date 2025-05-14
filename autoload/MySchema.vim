@@ -25,6 +25,9 @@ function! <SID>GetConnectInfo() " {{{
     if l:engine == 'mysql' && exists('g:MySchema_authorized_mysql_command')
       " if there is an authorized command, we don't need to prompt for credentials
       let l:info.command = g:MySchema_authorized_mysql_command
+    elseif l:engine == 'postgresql' && exists('g:MySchema_authorized_postgresql_command')
+      " if there is an authorized command, we don't need to prompt for credentials
+      let l:info.command = g:MySchema_authorized_postgresql_command
     else
       let l:info.host = <SID>GetGlobalHost(l:engine)
       let l:info.port = l:engine == 'mysql' ? <SID>GetGlobalMysqlPort() : <SID>GetGlobalPostgresPort()
@@ -233,6 +236,11 @@ function! <SID>GetMysqlCMD(connect)
 endfunction
 
 function! <SID>GetPsqlCMD(connect, dbname, compact)
+  let l:command = get(a:connect, 'command', '')
+  if strlen(l:command)
+    return l:command
+  endif
+
   let l:cmd = printf('psql --host=%s --port=%s --username=%s %s',
         \ shellescape(a:connect.host),
         \ shellescape(a:connect.port),

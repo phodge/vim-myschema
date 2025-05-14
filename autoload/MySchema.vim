@@ -461,7 +461,7 @@ function! <SID>RunSQL()
   " do we need to destroy any other buffers first?
   if exists('b:MySchema_destroy')
     if len(b:MySchema_destroy)
-      exe 'bwipeout' join(b:MySchema_destroy)
+      silent! exe 'bwipeout' join(b:MySchema_destroy)
       let b:MySchema_destroy = []
     endif
   else

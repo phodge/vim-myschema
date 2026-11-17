@@ -481,6 +481,7 @@ function! <SID>NewWindow(contents, bufname)
     if l:split
       close
     endif
+    throw v:exception
   endtry
 
   " failed

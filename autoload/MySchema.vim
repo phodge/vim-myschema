@@ -32,7 +32,7 @@ function! <SID>GetConnectInfo() " {{{
       let l:info.host = <SID>GetGlobalHost(l:engine)
       let l:info.port = l:engine == 'mysql' ? <SID>GetGlobalMysqlPort() : <SID>GetGlobalPostgresPort()
       let l:info.user = <SID>GetGlobalUser(l:engine)
-      let l:info.pass = <SID>GetGlobalPass()
+      let l:info.pass = <SID>GetGlobalPass(l:engine)
     endif
 
     return l:info
@@ -151,7 +151,7 @@ function! <SID>GetGlobalUser(engine)
   return g:MySchema_user
 endfunction
 
-function! <SID>GetGlobalPass()
+function! <SID>GetGlobalPass(engine)
   if !exists('g:MySchema_pass')
     echohl Question
     let g:MySchema_pass = inputsecret('password: ')

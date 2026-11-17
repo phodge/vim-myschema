@@ -30,7 +30,13 @@ function! <SID>GetConnectInfo() " {{{
       let l:info.command = g:MySchema_authorized_postgresql_command
     else
       let l:info.host = <SID>GetGlobalHost(l:engine)
-      let l:info.port = l:engine == 'mysql' ? <SID>GetGlobalMysqlPort() : <SID>GetGlobalPostgresPort()
+      if l:engine == 'mysql'
+        let l:info.port = <SID>GetGlobalMysqlPort()
+      elseif l:engine == 'postgresql'
+        let l:info.port = <SID>GetGlobalPostgresPort()
+      else
+        echoerr '<SID>GetConnectInfo() not implemented for engine ' . a:connect.engine
+      endif
       let l:info.user = <SID>GetGlobalUser(l:engine)
       let l:info.pass = <SID>GetGlobalPass(l:engine)
     endif
@@ -177,9 +183,11 @@ function! <SID>PromptDB(connect, prompt)
     endif
 
     let l:db_list = split(l:db_string)
-  else
+  elseif a:connect.engine == 'postgresql'
     " postgresql
     let l:db_list = <SID>GetPsqlDatabases(a:connect)
+  else
+    echoerr 'Unknown engine ' . a:connect.engine
   endif
 
   if ! len(l:db_list)
@@ -281,10 +289,13 @@ function! <SID>ShowTables(connect, database)
     let l:mysql = <SID>GetMysqlCMD(a:connect)
     let l:table_string = system(l:mysql.' -t '.a:database, 'show tables')
     let l:table_string = <SID>RemoveWarning(l:table_string)
-  else
+  elseif a:connect.engine == 'postgresql'
     " postgresql
     let l:psql = <SID>GetPsqlCMD(a:connect, a:database, 0)
     let l:table_string = system(l:psql, '\d+')
+  else
+    echoerr '<SID>ShowTables() not implemented for engine ' . a:connect.engine
+    return ''
   endif
   if v:shell_error
     " if the mysql command fails, it may be because the credentials are
@@ -309,8 +320,10 @@ function! <SID>ShowTableFromDB(connect, database, table_name)
     call add(l:queries, [ printf("DESC %s.%s", a:database, a:table_name), '-t', 0 ])
     call add(l:queries, [ printf("SHOW CREATE TABLE %s.%s\\G", a:database, a:table_name), '-N', 2])
     call add(l:queries, [ printf("SHOW KEYS FROM %s.%s", a:database, a:table_name), '-t', 0])
-  else
+  elseif a:connect.engine == 'postgresql'
     call add(l:queries, [ '\d+ '.a:table_name, '', 0])
+  else
+    echoerr '<SID>ShowTableFromDB() not implemented for engine ' . a:connect.engine
   endif
 
   " output a list of all tables
@@ -320,10 +333,12 @@ function! <SID>ShowTableFromDB(connect, database, table_name)
       let l:cmd = <SID>GetMysqlCMD(a:connect)
       let l:output = system(l:cmd.' '.l:options, l:query)
       let l:output = <SID>RemoveWarning(l:output)
-    else
+    elseif a:connect.engine == 'postgresql'
       " postgresql
       let l:cmd = <SID>GetPsqlCMD(a:connect, a:database, 0)
       let l:output = system(l:cmd.' '.l:options, l:query)
+    else
+      echoerr '<SID>ShowTableFromDB() not implemented for engine ' . a:connect.engine
     endif
     let l:output = substitute(l:output, '\\n', '\n', 'g')
     if v:shell_error
@@ -349,6 +364,7 @@ function! <SID>RemoveWarning(output)
 endfunction
 
 function! <SID>FindDatabasesWithTable(connect, table_name)
+  " mysql
   if a:connect.engine == 'mysql'
     let l:mysql  = <SID>GetMysqlCMD(a:connect)
     let l:query  = printf('SELECT TABLE_SCHEMA FROM information_schema.TABLES WHERE TABLE_NAME = "%s"', a:table_name)
@@ -367,25 +383,29 @@ function! <SID>FindDatabasesWithTable(connect, table_name)
   endif
 
   " postgresql
-  let l:matches = []
-  for l:dbname in <SID>GetPsqlDatabases(a:connect)
-    let l:psql  = <SID>GetPsqlCMD(a:connect, l:dbname, 1)
-    let l:query  = "SELECT COUNT(*) FROM information_schema.tables"
-    let l:query .= " WHERE table_schema NOT IN('pg_catalog', 'information_schema')"
-    let l:query .= " AND table_name = '".a:table_name."'"
-    let l:output = system(l:psql, l:query)
-    if v:shell_error
-      call MySchema#ResetOptions(1)
-      echohl Error
-      echo l:output
-      echohl None
-      return []
-    endif
-    if l:output !~ '^\_s*0\_s*$'
-      call add(l:matches, l:dbname)
-    endif
-  endfor
-  return l:matches
+  if a:connect.engine == 'postgresql'
+    let l:matches = []
+    for l:dbname in <SID>GetPsqlDatabases(a:connect)
+      let l:psql  = <SID>GetPsqlCMD(a:connect, l:dbname, 1)
+      let l:query  = "SELECT COUNT(*) FROM information_schema.tables"
+      let l:query .= " WHERE table_schema NOT IN('pg_catalog', 'information_schema')"
+      let l:query .= " AND table_name = '".a:table_name."'"
+      let l:output = system(l:psql, l:query)
+      if v:shell_error
+        call MySchema#ResetOptions(1)
+        echohl Error
+        echo l:output
+        echohl None
+        return []
+      endif
+      if l:output !~ '^\_s*0\_s*$'
+        call add(l:matches, l:dbname)
+      endif
+    endfor
+    return l:matches
+  endif
+
+  echoerr '<SID>FindDatabasesWithTable() not implemented for engine ' . a:connect.engine
 endfunction
 
 function! <SID>NewWindow(contents, bufname)
@@ -473,9 +493,11 @@ function! <SID>RunSQL()
     let l:cmd = <SID>GetMysqlCMD(l:connect).' -t '.shellescape(l:db)
     let l:output = system(l:cmd.' < '.l:source)
     let l:output = <SID>RemoveWarning(l:output)
-  else
+  elseif a:connect.engine == 'postgresql'
     let l:cmd = <SID>GetPsqlCMD(l:connect, l:db, 0)
     let l:output = system(l:cmd.' < '.l:source)
+  else
+    echoerr '<SID>RunSQL() not implemented for engine ' . a:connect.engine
   endif
   if v:shell_error
     echohl Error

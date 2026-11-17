@@ -34,6 +34,8 @@ function! <SID>GetConnectInfo() " {{{
         let l:info.port = <SID>GetGlobalMysqlPort()
       elseif l:engine == 'postgresql'
         let l:info.port = <SID>GetGlobalPostgresPort()
+      elseif l:engine == 'sqlite'
+        let l:info.port = v:null
       else
         echoerr '<SID>GetConnectInfo() not implemented for engine ' . a:connect.engine
       endif
@@ -110,7 +112,7 @@ endfunction
 
 function! <SID>GetGlobalEngine()
   if !exists('g:MySchema_engine') || !strlen(g:MySchema_engine)
-    let l:engines = ['MySQL', 'Postgresql']
+    let l:engines = ['MySQL', 'Postgresql', 'sqlite']
     let l:idx = VimUI#SelectOne('engine: ', l:engines, 1)
     if l:idx >= 0
       let g:MySchema_engine = tolower(l:engines[l:idx])
@@ -122,6 +124,10 @@ function! <SID>GetGlobalEngine()
 endfunction
 
 function! <SID>GetGlobalHost(engine)
+  if a:engine == 'sqlite'
+    return v:null
+  endif
+
   if !exists('g:MySchema_host') || !strlen(g:MySchema_host)
     echohl Question
     let g:MySchema_host = input(a:engine . ' host: ', g:MySchema_default_host)
@@ -149,6 +155,10 @@ function! <SID>GetGlobalPostgresPort()
 endfunction
 
 function! <SID>GetGlobalUser(engine)
+  if a:engine == 'sqlite'
+    return v:null
+  endif
+
   if !exists('g:MySchema_user') || !strlen(g:MySchema_user)
     echohl Question
     let g:MySchema_user = input(a:engine . ' user: ', g:MySchema_default_user)
@@ -158,6 +168,10 @@ function! <SID>GetGlobalUser(engine)
 endfunction
 
 function! <SID>GetGlobalPass(engine)
+  if a:engine == 'sqlite'
+    return v:null
+  endif
+
   if !exists('g:MySchema_pass')
     echohl Question
     let g:MySchema_pass = inputsecret('password: ')
@@ -167,6 +181,32 @@ function! <SID>GetGlobalPass(engine)
 endfunction
 
 function! <SID>PromptDB(connect, prompt)
+  if a:connect.engine == 'sqlite'
+    let l:db_list = get(b:, 'MySchema_sqlite_databases', v:null)
+    if l:db_list is v:null
+      echohl Error
+      echo "ERROR: db file paths must be added to b:MySchema_sqlite_databases"
+      echohl None
+      return ''
+    endif
+
+    if type(l:db_list) != type([])
+      echohl Error
+      echo "ERROR: b:MySchema_sqlite_databases must be a list"
+      echohl None
+      return ''
+    endif
+
+    if len(l:db_list) == 0
+      echohl Error
+      echo "ERROR: db file paths must be added to b:MySchema_sqlite_databases"
+      echohl None
+      return ''
+    endif
+
+    return <SID>ChooseDatabase(a:prompt, l:db_list)
+  endif
+
   " generate a list of all databases
   if a:connect.engine == 'mysql'
     let l:mysql = <SID>GetMysqlCMD(a:connect)
@@ -186,6 +226,9 @@ function! <SID>PromptDB(connect, prompt)
   elseif a:connect.engine == 'postgresql'
     " postgresql
     let l:db_list = <SID>GetPsqlDatabases(a:connect)
+  elseif a:connect.engine == 'sqlite'
+    " sqlite
+    let l:db_list = <SID>GetSqliteDatabases(a:connect)
   else
     echoerr 'Unknown engine ' . a:connect.engine
   endif
@@ -293,6 +336,9 @@ function! <SID>ShowTables(connect, database)
     " postgresql
     let l:psql = <SID>GetPsqlCMD(a:connect, a:database, 0)
     let l:table_string = system(l:psql, '\d+')
+  elseif a:connect.engine == 'sqlite'
+    let l:table_string = system('sqlite3 ' . a:database, '.tables')
+    let l:table_string = substitute(l:table_string, ' \+', '\n', 'g')
   else
     echoerr '<SID>ShowTables() not implemented for engine ' . a:connect.engine
     return ''
@@ -322,6 +368,8 @@ function! <SID>ShowTableFromDB(connect, database, table_name)
     call add(l:queries, [ printf("SHOW KEYS FROM %s.%s", a:database, a:table_name), '-t', 0])
   elseif a:connect.engine == 'postgresql'
     call add(l:queries, [ '\d+ '.a:table_name, '', 0])
+  elseif a:connect.engine == 'sqlite'
+    call add(l:queries, [ '.schema '.a:table_name, '', 0])
   else
     echoerr '<SID>ShowTableFromDB() not implemented for engine ' . a:connect.engine
   endif
@@ -336,6 +384,9 @@ function! <SID>ShowTableFromDB(connect, database, table_name)
     elseif a:connect.engine == 'postgresql'
       " postgresql
       let l:cmd = <SID>GetPsqlCMD(a:connect, a:database, 0)
+      let l:output = system(l:cmd.' '.l:options, l:query)
+    elseif a:connect.engine == 'sqlite'
+      let l:cmd = 'sqlite3 ' . a:database
       let l:output = system(l:cmd.' '.l:options, l:query)
     else
       echoerr '<SID>ShowTableFromDB() not implemented for engine ' . a:connect.engine

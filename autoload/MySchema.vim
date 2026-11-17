@@ -462,6 +462,19 @@ function! <SID>FindDatabasesWithTable(connect, table_name)
     return l:matches
   endif
 
+  if a:connect.engine == 'sqlite'
+    let l:db_list = <SID>GetSqliteDatabases()
+    let l:matches = []
+    for l:dbname in db_list
+      let l:tables_string = <SID>GetSqliteTablesString(l:dbname)
+      let l:tables = split(l:tables_string)
+      if index(l:tables, a:table_name) >= 0
+        call add(l:matches, l:dbname)
+      endif
+    endfor
+    return l:matches
+  endif
+
   echoerr '<SID>FindDatabasesWithTable() not implemented for engine ' . a:connect.engine
 endfunction
 

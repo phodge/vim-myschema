@@ -182,28 +182,7 @@ endfunction
 
 function! <SID>PromptDB(connect, prompt)
   if a:connect.engine == 'sqlite'
-    let l:db_list = get(b:, 'MySchema_sqlite_databases', v:null)
-    if l:db_list is v:null
-      echohl Error
-      echo "ERROR: db file paths must be added to b:MySchema_sqlite_databases"
-      echohl None
-      return ''
-    endif
-
-    if type(l:db_list) != type([])
-      echohl Error
-      echo "ERROR: b:MySchema_sqlite_databases must be a list"
-      echohl None
-      return ''
-    endif
-
-    if len(l:db_list) == 0
-      echohl Error
-      echo "ERROR: db file paths must be added to b:MySchema_sqlite_databases"
-      echohl None
-      return ''
-    endif
-
+    let l:db_list = <SID>GetSqliteDatabases()
     return <SID>ChooseDatabase(a:prompt, l:db_list)
   endif
 
@@ -239,6 +218,32 @@ function! <SID>PromptDB(connect, prompt)
 
   return <SID>ChooseDatabase(a:prompt, l:db_list)
 endfunction
+
+function! <SID>GetSqliteDatabases()
+  let l:db_list = get(b:, 'MySchema_sqlite_databases', v:null)
+  if l:db_list is v:null
+    echohl Error
+    echo "ERROR: db file paths must be added to b:MySchema_sqlite_databases"
+    echohl None
+    return []
+  endif
+
+  if type(l:db_list) != type([])
+    echohl Error
+    echo "ERROR: b:MySchema_sqlite_databases must be a list"
+    echohl None
+    return []
+  endif
+
+  if len(l:db_list) == 0
+    echohl Error
+    echo "ERROR: db file paths must be added to b:MySchema_sqlite_databases"
+    echohl None
+    return []
+  endif
+
+  return l:db_list
+endfun
 
 let s:vim_ui_checked = 0
 
@@ -334,8 +339,7 @@ function! <SID>ShowTables(connect, database)
     let l:psql = <SID>GetPsqlCMD(a:connect, a:database, 0)
     let l:table_string = system(l:psql, '\d+')
   elseif a:connect.engine == 'sqlite'
-    let l:table_string = system('sqlite3 ' . a:database, '.tables')
-    let l:table_string = substitute(l:table_string, ' \+', '\n', 'g')
+    let l:table_string = <SID>GetSqliteTablesString(a:database)
   else
     echoerr '<SID>ShowTables() not implemented for engine ' . a:connect.engine
     return ''
@@ -356,6 +360,11 @@ function! <SID>ShowTables(connect, database)
     let b:MySchema_database = a:database
   endif
 endfunction
+
+function! <SID>GetSqliteTablesString(database)
+  let l:table_string = system('sqlite3 ' . a:database, '.tables')
+  return substitute(l:table_string, ' \+', '\n', 'g')
+endfun
 
 function! <SID>ShowTableFromDB(connect, database, table_name)
   let l:queries = []

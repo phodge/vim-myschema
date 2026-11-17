@@ -226,9 +226,6 @@ function! <SID>PromptDB(connect, prompt)
   elseif a:connect.engine == 'postgresql'
     " postgresql
     let l:db_list = <SID>GetPsqlDatabases(a:connect)
-  elseif a:connect.engine == 'sqlite'
-    " sqlite
-    let l:db_list = <SID>GetSqliteDatabases(a:connect)
   else
     echoerr 'Unknown engine ' . a:connect.engine
   endif
